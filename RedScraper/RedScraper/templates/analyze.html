@@ -1,0 +1,76 @@
+
+
+{% extends "layout.html" %}
+
+{% block content %}
+
+<h2>{{ title }}.</h2>
+<br />
+<form method="POST">
+    {{ form.csrf_token }}
+    <h5>Select method</h5>
+    {{ form.scrapemethod(class="form-control") }}
+    <br />
+    <h5>Select subreddit</h5>
+    {{ form.scrapechoice(class="form-control" ) }}
+    <br />
+    <h5>Select analyze method</h5>
+    {{ form.analyzemethod(class="form-control") }}
+    <br />
+    <h5>Select file to analyze</h5>
+    {{ form.filechoice(class="form-control" ) }}
+    <br />
+    <button type="submit" id="formsubmit" name="formsubmit" class="btn btn-primary" onclick="loading();">Analyze</button>
+</form>
+<br />
+<ol>
+  {% for i in results %}
+    <p>{{loop.index}}: {{i}}: {{results[i]}}</p>
+  {% endfor %}
+</ol>
+
+<script>
+  let scrapemethod_select = document.getElementById('scrapemethod');
+  let scrapechoice_select = document.getElementById('scrapechoice');
+  let filechoice_select = document.getElementById('filechoice');
+
+  scrapemethod_select.onchange = function() {
+    choice = scrapemethod_select.value;
+
+    fetch('/sub/' + choice).then(function(response) {
+        response.json().then(function(data) {
+          let optionHTML = '';
+          for(let choice of data.choices) {
+            optionHTML += '<option value="'+ choice.sub +'">' + choice.sub + '</option>';
+          }
+
+          scrapechoice_select.innerHTML = optionHTML;
+
+        });
+    });
+  }
+
+  scrapechoice_select.onchange = function() {
+    choice = scrapechoice_select.value;
+    method = scrapemethod_select.value;
+    fetch('/choice/' + choice + '/' + method).then(function(response) {
+        response.json().then(function(data) {
+          let optionHTML = '';
+          for(let choice of data.files) {
+            optionHTML += '<option value="'+ choice.file +'">' + choice.file + '</option>';
+          }
+
+          filechoice_select.innerHTML = optionHTML;
+
+        });
+    });
+  }
+
+  type="text/javascript">
+        function loading(){
+            $("#loading").show();
+            $("#content").hide();       
+        }
+</script>
+
+{% endblock %}

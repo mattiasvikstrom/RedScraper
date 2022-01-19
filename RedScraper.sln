@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32014.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "RedScraper", "RedScraper\RedScraper.pyproj", "{2746AF3A-8557-4D2A-8216-F984A4304424}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2746AF3A-8557-4D2A-8216-F984A4304424}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2746AF3A-8557-4D2A-8216-F984A4304424}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2746AF3A-8557-4D2A-8216-F984A4304424}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2746AF3A-8557-4D2A-8216-F984A4304424}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BDBC5CD8-6264-4B10-A1A0-D4154FA5AB85}
+	EndGlobalSection
+EndGlobal

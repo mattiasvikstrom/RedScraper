@@ -1,0 +1,47 @@
+
+
+{% extends "layout.html" %}
+
+{% block content %}
+
+<h2>{{ title }}.</h2>
+<br />
+<form method="POST">
+    {{ form.csrf_token }}
+    <h5>Select method</h5>
+    {{ form.scrapemethod(class="form-control") }}
+    <br />
+    <h5>Select subreddit</h5>
+    {{ form.scrapechoice(class="form-control" ) }}
+    <br />
+    <button type="submit" id="formsubmit" name="formsubmit" class="btn btn-primary" onclick="loading();">Scrape</button>
+</form>
+  
+<script>
+  let scrapemethod_select = document.getElementById('scrapemethod');
+  let scrapechoice_select = document.getElementById('scrapechoice');
+
+  scrapemethod_select.onchange = function() {
+    choice = scrapemethod_select.value;
+
+    fetch('/sub/' + choice).then(function(response) {
+        response.json().then(function(data) {
+          let optionHTML = '';
+          for(let choice of data.choices) {
+            optionHTML += '<option value="'+ choice.sub +'">' + choice.sub + '</option>';
+          }
+
+          scrapechoice_select.innerHTML = optionHTML;
+
+        });
+    });
+  }
+
+  type="text/javascript">
+        function loading(){
+            $("#loading").show();
+            $("#content").hide();       
+        }
+</script>
+
+{% endblock %}
