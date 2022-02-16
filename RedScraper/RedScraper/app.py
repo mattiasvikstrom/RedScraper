@@ -1,18 +1,20 @@
 """
 Routes and views for the flask application.
 """
-from typing_extensions import Required
-from flask import Flask, redirect, url_for
-from datetime import datetime
-from flask import render_template, request, jsonify
-from os import environ
+from flask import Flask, redirect, url_for, g, render_template, request, jsonify
+import os
 from scraper import *
 from scraper_comments import *
+from sentiment import *
 from analyze import *
 from flask_wtf import FlaskForm
 from wtforms import SelectField
 from flask_sqlalchemy import SQLAlchemy
 from flask_bootstrap import Bootstrap
+from io import BytesIO
+import matplotlib.pyplot as plt
+import base64
+import time
 
 app = Flask(__name__)
 Bootstrap(app)
@@ -20,7 +22,6 @@ app.secret_key = "hey"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///menu.sqlite3'
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
-
 load_dotenv()
 
 #database instance. created if not avaliable.
@@ -30,11 +31,6 @@ class mainmenu(db.Model):
     choice = db.Column(db.String(20))
     name = db.Column(db.String(20))
 
-    # def __init__(self, menu, choice, name):
-    #     self.menu = menu
-    #     self.choice = choice
-    #     self.name = name
-
     def __repr__(self):
         return f"Choice('{self.menu}', '{self.choice}', '{self.name}')"
 
@@ -43,10 +39,6 @@ class choicemenu(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     choice = db.Column(db.String(20))
     sub = db.Column(db.String(20))
-
-    # def __init__(self, choice, sub):
-    #     self.choice = choice
-    #     self.sub = sub
 
     def __repr__(self):
         return f"Choice('{self.choice}', '{self.sub}')"
@@ -58,99 +50,130 @@ class analyzemenu(db.Model):
     choice = db.Column(db.String(20))
     name = db.Column(db.String(20))
 
-    # def __init__(self, menu, choice, name):
-    #     self.menu = menu
-    #     self.choice = choice
-    #     self.name = name
-
     def __repr__(self):
         return f"Choice('{self.menu}', '{self.choice}', '{self.name}')"
 
-#reusable Flask form
+#Flask form for scraping
 class Form(FlaskForm):
     scrapemethod = SelectField('Method', choices=[])
     scrapechoice = SelectField('Subreddit', choices=[])
-
+#Flask form for analyzing
 class Analyzeform(FlaskForm):
     scrapemethod = SelectField('Method', choices=[])
     scrapechoice = SelectField('Subreddit', choices=[])
     analyzemethod = SelectField('Analyze', choices=[])
     filechoice = SelectField('files', choices=[])
-
+#Flask form for file selection
 class Filesform(FlaskForm):
     browsefiles = SelectField('Files',files=[])
-        
+
 @app.route('/analyze', methods=['GET', 'Post'])
 def analyze():
-    form = Analyzeform()
+    form = Analyzeform() #initialize flask form
+    #query database for available menu options
     form.scrapemethod.choices = [(mainmenu.choice, mainmenu.name ) for mainmenu in mainmenu.query.filter_by(menu='analyzemenu').all()]
     form.analyzemethod.choices = [(analyzemenu.choice, analyzemenu.name ) for analyzemenu in analyzemenu.query.filter_by(menu='analyzemenu').all()]
     form.scrapechoice.choices = [(choicemenu.sub) for choicemenu in choicemenu.query.filter_by(choice='').all()]
+    sub, file = "",""
     if request.method == 'POST':
-        choice = request.form["scrapemethod"]
-        method = request.form['analyzemethod']
-        sub = request.form['scrapechoice']
-        file = request.form['filechoice']
-        #buttoncheck = request.form['formsubmit']
-        if choice is not None:
-            if method == 'MM':
-                analyzeresults = RedditScraper_analyze()
-                results = analyzeresults.analyze_mostmentioned(choice, sub, file)
+        choice = request.form["scrapemethod"] #requests value from scrapemethod dropdown
+        method = request.form['analyzemethod'] 
+        try:
+            sub = request.form['scrapechoice']
+            file = request.form['filechoice']
+        except:
+            print(type(sub))
+        #if strings are not empty
+        if choice and sub and file:
+            if method == 'MM': #mostmentioned
+                g.start = time.time() #start timer for measurement of execution
+                analyzeresults = RedditScraper_analyze() #instantiate class
+                results = analyzeresults.analyze_mostmentioned(choice, sub, file) #call most mentioned method
+                returntime = time.time() - g.start # calculate execution time
+                returntime = "{:.2f}".format(returntime) #format time to 0,00 decimals
+                #prepare lists for value append
+                d = []
+                v = []
+                #iterate results from analyze to visualize in chartjs
+                for i in results:
+                    d.append(results[i])
+                    v.append(i)
                 return render_template(
                     'analyze.html', form=form,
                     title=(f'Most mentions from {choice} successful'),
-                    results = results
+                    results = results, values = v, datavalues = d, returntime = (f'in {str(returntime)} seconds')
                 )
             if method == 'SA':
-                return redirect(url_for('analyze', title=(f'Sentiment analysis from {choice} successful')))
-                # return render_template(
-                #     'scrape_test.html', form=form,
-                #     title=(f'scraping topics from {choice} successful')
-                # )
+                g.start = time.time() #start timer for measurement of execution
+                analyzeresults = RedditScraper_analyzer() #instantiate class
+                results = analyzeresults.sentiment(choice, sub, file) #call sentiment method
+                returntime = time.time() - g.start # calculate execution time
+                returntime = "{:.2f}".format(returntime) #format time to 0,00 decimals
+                #create the plot and save, fetch and link to it in the return to analyze page.
+                img = BytesIO() #instanciate in memory buffer
+                results.plot(kind = 'bar') #plot a bar type grapf
+                plt.savefig(img, format='png') #save graph plot as png 
+                plt.close() #close
+                img.seek(0) #locate image 
+                plot_url = base64.b64encode(img.getvalue()).decode('utf8') #create plot url to be displayed as results
+                
+                return render_template(
+                    'analyze.html', form=form,
+                    title=(f'Sentiment analysis from {choice} successful'),
+                    res = results, plot_url=plot_url, rt = (f'in {str(returntime)} seconds')
+                )
         else:
             return render_template(
                 'analyze.html', form=form,
-                title=(f'scraping of {choice} unsuccessful')
+                title=(f'analyze unsuccessful, make sure all choices are selected')
             )
     return render_template('analyze.html', form=form, title='Analyze data from reddit')
 
 #In the route, instanciate the Form query for the initial values displayed in second dropdown.
+#When a POST is triggered it routes to its correct method for scraping.
 @app.route('/scrape', methods=['GET', 'Post'])
 def scrape():
-    form = Form()
+    form = Form() #instanciate scrape form
+    method, choice = "", ""
+    #query database for dropdown options
     form.scrapemethod.choices = [(mainmenu.choice, mainmenu.name ) for mainmenu in mainmenu.query.filter_by(menu='mainmenu').all()]
     form.scrapechoice.choices = [(choicemenu.sub) for choicemenu in choicemenu.query.filter_by(choice='').all()]
     if request.method == 'POST':
-        choice = request.form["scrapechoice"]
-        method = request.form['scrapemethod']
+        try:
+            method = request.form['scrapemethod'] #request value from dropdown
+            choice = request.form['scrapechoice']
+        except:
+            print('error')
         #buttoncheck = request.form['formsubmit']
-        if choice is not None:
+        if choice and method:
+            g.start = time.time() #start timer for measurement of execution
             if method == 'SC':
-                scraper_comments = RedditScraper_comments()
-                scraper_comments.scrapered(choice)
+                scraper_comments = RedditScraper_comments() # instansiate class
+                scraper_comments.scrapered(choice) # call scraper method
+                returntime = time.time() - g.start #calculate execution time
+                returntime = "{:.2f}".format(returntime) #format time to 0,00 decimals
                 return render_template(
                     'scrape.html', form=form,
-                    title=(f'scraping comments from {choice} successful')
+                    title=(f'scraping comments from {choice} successful'), returntime = returntime
                 )
             if method == 'ST':
-                scraper = RedditScraper()
-                scraper.scrapered(choice)
-                return redirect(url_for('scrape', title=(f'scraping topics from {choice} successful')))
-                # return render_template(
-                #     'scrape_test.html', form=form,
-                #     title=(f'scraping topics from {choice} successful')
-                # )
+                scraper = RedditScraper() # instansiate class
+                scraper.scrapered(choice) # call scraper method
+                returntime = time.time() - g.start #calculate execution time
+                returntime = "{:.2f}".format(returntime) #format time to 0,00 decimals
+                return redirect(url_for('scrape', title=(f'scraping topics from {choice} successful'), returntime = returntime))
+
         else:
             return render_template(
                 'scrape.html', form=form,
-                title=(f'scraping of {choice} unsuccessful')
+                title=(f'scraping unsuccessful, make sure all choices are selected ')
             )
     return render_template('scrape.html', form=form, title='Select from list below to scrape')
 
 #When new category is selected fetch and return the avaliable choices for second dropdown
 @app.route('/sub/<choice>')
-def choice(choice):
-    choices = choicemenu.query.filter_by(choice=choice).all()
+def choice(choice): #input refers to method choice
+    choices = choicemenu.query.filter_by(choice=choice).all() #query all results for choicemenu with marching method choice
     choiceArray = []
 
     for choice in choices:
@@ -162,28 +185,21 @@ def choice(choice):
 
 @app.route('/choice/<choice>/<method>')
 def files(choice, method):
-    data_folder = (os.environ.get('pth'))
-
-    #choices = request.form["scrapechoice"] #wallstreetbets ex
-    #method = request.form['scrapemethod'] #'ST' ex
-
-    choiceArray = []
-
-    mainmenustring = fetchmainmenustring(method, choice)
-    full_path = (f'{data_folder}{mainmenustring}' + '/')
-
+    data_folder = (os.environ.get('pth')) #get folderpath
+    choiceArray = [] #instanciate return array
+    mainmenustring = fetchmainmenustring(method, choice) #fetch the correct folder string
+    full_path = (f'{data_folder}{mainmenustring}' + '/') #complete the path string
+    #itterate over all avaliable files in that path
     for file in os.listdir(full_path):
             choiceObj = {}
             filename = os.fsdecode(file)
-            if filename.endswith(".csv"): 
+            if filename.endswith(".csv"): #as of now only .csv files are of interest
                 choiceObj['file'] = filename
-                choiceArray.append(choiceObj)
-            #     continue
-            # else:
-            #     continue
+                choiceArray.append(choiceObj) #append files to the array
 
     return jsonify({'files' : choiceArray})
 
+#complete full path
 def fetchmainmenustring(method, choice):
     path = ""
     if(method is not None):
@@ -199,35 +215,6 @@ def home():
         'index.html',
         title='Home Page',
     )
-
-@app.route('/contact')
-def contact():
-    return render_template(
-        'contact.html',
-        title='Contact',
-        message='Your contact page.'
-    )
-
-@app.route('/scrape2', methods=['GET', 'POST'])
-def scrape2():
-    if request.method == 'POST':
-        choice = request.form.get('scrapedrop')
-        if choice is not None:
-            scraper = RedditScraper()
-            scraper.scrapered(choice)
-            return render_template(
-                'scrape.html',
-                title=(f'scraping of {choice} successful')
-            )
-        else:
-            return render_template(
-            'scrape.html',
-            title='Nothing happend.'
-        )
-    return render_template(
-    'scrape.html',
-        title='Select from list below to scrape'
-        )
 
 if __name__ == '__main__':
     db.create_all()

@@ -48,7 +48,3 @@ websocket-client==1.2.3
 Werkzeug==2.0.2
 WTForms==3.0.1
 yarl==1.7.2
-squarify==0.4.3
-emoji==1.2.0
-nltk==3.5
-data==0.4

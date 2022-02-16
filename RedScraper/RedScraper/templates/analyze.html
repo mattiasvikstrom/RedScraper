@@ -3,8 +3,9 @@
 {% extends "layout.html" %}
 
 {% block content %}
-
 <h2>{{ title }}.</h2>
+<h2>{{ returntime }}</h2>
+
 <br />
 <form method="POST">
     {{ form.csrf_token }}
@@ -23,11 +24,11 @@
     <button type="submit" id="formsubmit" name="formsubmit" class="btn btn-primary" onclick="loading();">Analyze</button>
 </form>
 <br />
-<ol>
-  {% for i in results %}
-    <p>{{loop.index}}: {{i}}: {{results[i]}}</p>
-  {% endfor %}
-</ol>
+<img src="data:image/png;base64, {{ plot_url }}" onerror="this.style.display='none'">
+<canvas id="chart" width="700" height="500"></canvas>
+
+<!-- <canvas id="senti" width="700" height="500"></canvas> -->
+
 
 <script>
   let scrapemethod_select = document.getElementById('scrapemethod');
@@ -72,5 +73,57 @@
             $("#content").hide();       
         }
 </script>
+
+<script>
+  var ctx = document.getElementById("chart").getContext("2d");
+  var chart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: {{ values | safe }},
+      datasets: [
+        {
+           label: "{{ label | safe }}",
+           data: {{ datavalues | safe }},
+           backgroundColor: [
+            'rgba(255, 99, 132, 0.2)',
+            'rgba(255, 159, 64, 0.2)',
+            'rgba(255, 205, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(153, 102, 255, 0.2)',
+            'rgba(201, 203, 207, 0.2)',
+            'rgba(255, 232, 172, 0.2)'
+          ],
+        }
+      ]
+    }
+  })
+</script>
+
+<!-- <script>
+  var ctx = document.getElementById("senti").getContext("2d");
+  var chart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: {{ values | safe }},
+      datasets: [
+        {
+           label: "{{ label | safe }}",
+           data: {{ datavalues | safe }},
+           backgroundColor: [
+            'rgba(255, 99, 132, 0.2)',
+            'rgba(255, 159, 64, 0.2)',
+            'rgba(255, 205, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(153, 102, 255, 0.2)',
+            'rgba(201, 203, 207, 0.2)',
+            'rgba(255, 232, 172, 0.2)'
+          ],
+        }
+      ]
+    }
+  })
+</script> -->
 
 {% endblock %}

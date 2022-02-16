@@ -1,0 +1,6 @@
+.env
+venv/pyvenv.cfg
+venv/
+RedScraper/Database/
+__pycache__/
+.sqlite3

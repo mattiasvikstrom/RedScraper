@@ -47,15 +47,9 @@ class RedditScraper:
                 idframe = pd.read_csv(f)
             ids = idframe['ID']
 
-        check = False
-
         #compares existing ids to avoid duplications
         for sub in reddit.subreddit(subredd).hot():
-            check = False
-            for i in ids:
-                if i == sub.id:
-                    check = True
-            if not check:
+            if sub.id not in str(ids):
                 titlelist.append(sub.title)
                 textlist.append(sub.selftext)
                 idlist.append(sub.id)
@@ -73,7 +67,7 @@ class RedditScraper:
                         })
         #opens and appends to file corresponding to name of the daily file. creates if it does not exist.
         with open(full_path+'%s.csv' % file_name, 'a', encoding="utf-8") as f:
-            data.to_csv(f, header=f.tell()==0)
+            data.to_csv(f, header=f.tell()==0, index=False)
 
 if __name__ == '__main__':
     scraper = RedditScraper()
